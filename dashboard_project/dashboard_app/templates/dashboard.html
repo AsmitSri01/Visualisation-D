@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+ .container{
+    display: flex;
+    justify-content: space-between;
+
+ }
+ .colored-heading {
+    background-color: rgba(138, 26, 190, 0.1); 
+    display: inline;
+    padding: 8px; 
+    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+  }
+ 
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+</head>
+
+<body>
+     
+    <div style="width: 80%; margin: auto;">
+        <div class="container" >
+            <div style = "width:48%;">
+                <h1 class="colored-heading">Intensity Chart</h1>
+                <canvas id="intensityChart"></canvas>
+            </div>
+            <div style = "width:48%;">
+                <h1 class="colored-heading">Region Chart</h1>
+                <canvas id="regionChart"></canvas>
+            </div>
+        </div>
+       <br><br>
+        <div style = "width:900px;">
+            <h1 class="colored-heading">Topic Chart</h1>
+            <canvas id="topicChart"></canvas>
+        </div><br><br>
+        <div style = "width:800px;">
+            <h1 class="colored-heading">Likelihood Chart</h1>
+            <canvas id="likelihoodChart"></canvas>
+        </div><br><br>
+        <div style = "width:900px;">
+            <h1 class="colored-heading">Relevance Chart</h1>
+            <canvas id="relevanceChart"></canvas>
+        </div><br><br>
+        
+        
+        <div style = "width:900px;">
+            <h1 class="colored-heading">Country Chart</h1>
+            <select id = "countryOptions" onchange="getchart()" default = "United States of America"></select>
+            <canvas id="countryChart"></canvas>
+        </div>
+        
+       
+        
+    </div>
+
+    <script>
+        // Initialize an empty array to store JSON data
+        let jsonData = [];
+
+
+        // AJAX request to get JSON data
+        $(document).ready(function () {
+            $.ajax({
+                url: 'http://127.0.0.1:8000/api/getdata/',
+                type: 'GET',
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                success: function (data) {
+                    // Use the received JSON data as needed
+                    console.log(data);
+                    jsonData = data.data;
+
+                    // Draw charts after data is loaded
+                    drawIntensityCharts();
+                    drawTopicsCharts();
+                    drawRegionCharts();
+                    drawLikelihoodChart();
+                    drawrelevanceCharts();
+                    prepareOptions();
+                    drawCountryChart("United States of America");
+                },
+                error: function (error) {
+                    console.error('Error fetching JSON data:', error);
+                }
+            });
+        });
+
+
+        function drawIntensityCharts() {
+
+            
+            const uniqueYearsSet = new Set(jsonData.map(item => item.start_year).filter(year => year !== null));
+            const uniqueYears = Array.from(uniqueYearsSet);
+            console.log(uniqueYears)
+            
+            const obj = {}
+            findIntensity();
+            function findIntensity(){
+                uniqueYears.forEach(year=>{
+                    let sum = 0;
+                    let count = 0
+                    jsonData.forEach(item=>{
+                        if(item.start_year==year){
+                            sum+=item.intensity;
+                            count++;
+                        }
+                    })
+                    sum = sum/count;
+                    obj[year] = sum;
+                })
+            }
+            
+            console.log(obj)
+            new Chart("intensityChart", {
+                type: "bar",
+                data: {
+                    labels: Object.keys(obj),
+                    datasets: [{
+                        backgroundColor: 'blue',
+                        data: Object.values(obj)
+                    }]
+                },
+                options: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: "Intensity Chart"
+                    }
+                }
+            });
+        }
+ 
+            function drawrelevanceCharts() {
+                const data = {
+                    datasets: [{
+                        label: 'Relevance',
+                        data: jsonData.map(item => ({
+                            x: item.likelihood,
+                            y: item.impact,
+                            r: item.relevance * 5
+                        }),
+                        )
+                    },
+                        {
+                            label: 'Intensity',
+                            data: jsonData.map(item => ({
+                                x: item.likelihood,
+                                y: item.impact,
+                                r: item.intensity,
+                            }),
+                            ),
+                        backgroundColor: 'rgb(255, 99, 132)'
+                    }]
+                };  
+                new Chart("relevanceChart", {
+                type: "bubble",
+                data: data,
+                options: {
+                    
+                }
+            });
+
+            }
+
+
+
+        function drawTopicsCharts(){
+            
+            const topics = {}
+            jsonData.forEach(item => {
+                if (item.topic in topics){
+                    if(item.relevance>topics[item.topic]){
+                        topics[item.topic] = item.relevance;
+                    }
+                }
+                else {
+                    topics[item.topic] = item.relevance
+                }
+            })
+            const colors = [
+  "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF",
+  "#FF4500", "#8B4513", "#2E8B57", "#D2691E", "#20B2AA", "#9370DB",
+  "#DC143C", "#556B2F", "#4169E1", "#8B008B", "#32CD32", "#8A2BE2",
+  "#FFD700", "#8B008B", "#00FA9A", "#7CFC00", "#9932CC", "#8B0000",
+  "#48D1CC", "#8B4513", "#1E90FF", "#FF69B4", "#00CED1", "#8B4513",
+  "#6A5ACD", "#00FF7F", "#FF1493", "#00BFFF", "#8A2BE2", "#00FF00",
+  "#FA8072", "#00FFFF", "#BA55D3", "#00FF7F", "#DDA0DD", "#32CD32",
+  "#FF6347", "#008080", "#8B0000", "#20B2AA", "#FF8C00", "#00CED1",
+  "#8B4513", "#48D1CC", "#8B4513", "#1E90FF", "#FF69B4", "#00CED1",
+  "#8B4513", "#6A5ACD", "#00FF7F", "#FF1493", "#00BFFF", "#8A2BE2",
+  "#00FF00", "#FA8072", "#00FFFF", "#BA55D3", "#00FF7F", "#DDA0DD",
+  "#32CD32", "#FF6347", "#008080", "#8B0000", "#20B2AA", "#FF8C00",
+  "#00CED1", "#8B4513", "#48D1CC", "#8B4513", "#1E90FF", "#FF69B4",
+  "#00CED1", "#8B4513", "#6A5ACD", "#00FF7F", "#FF1493", "#00BFFF",
+  "#8A2BE2", "#00FF00", "#FA8072", "#00FFFF", "#BA55D3", "#00FF7F",
+  "#DDA0DD", "#32CD32", "#FF6347", "#008080", "#8B0000", "#20B2AA",
+  "#FF8C00", "#00CED1", "#8B4513", "#48D1CC", "#8B4513", "#1E90FF",
+  "#FF69B4", "#00CED1", "#8B4513", "#6A5ACD", "#00FF7F", "#FF1493",
+  "#00BFFF", "#8A2BE2", "#00FF00", "#FA8072", "#00FFFF", "#BA55D3",
+  "#00FF7F", "#DDA0DD", "#32CD32", "#FF6347", "#008080", "#8B0000",
+  "#20B2AA", "#FF8C00", "#00CED1", "#8B4513", "#48D1CC", "#8B4513",
+  "#1E90FF", "#FF69B4", "#00CED1", "#8B4513", "#6A5ACD", "#00FF7F",
+  "#FF1493", "#00BFFF", "#8A2BE2", "#00FF00", "#FA8072", "#00FFFF",
+  "#BA55D3", "#00FF7F", "#DDA0DD", "#32CD32", "#FF6347", "#008080",
+  "#8B0000", "#20B2AA", "#FF8C00", "#00CED1", "#8B4513", "#48D1CC"
+];
+            console.log("topics :- ",topics)
+            new Chart("topicChart", {
+                type:"polarArea", 
+                data: {
+                    labels: Object.keys(topics),
+                    datasets: [{
+                        backgroundColor: colors,
+                        data: Object.values(topics)
+                    }]
+                },
+                options: {
+                    title: {
+                        display: true,
+                        text: "Region Chart"
+                    }
+                }
+            });
+        }
+
+        function drawRegionCharts() {
+            const regionCounts = {}
+            jsonData.forEach(item => {
+                if (item.region in regionCounts) {
+                    regionCounts[item.region]++;
+                }
+                else {
+                    regionCounts[item.region] = 1;
+                }
+            })
+            new Chart("regionChart", {
+                type: "pie",
+                data: {
+                    labels: Object.keys(regionCounts),
+                    datasets: [{
+                        backgroundColor: ['#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4CAF50',
+                            '#FF9800',
+                            '#9C27B0',
+                            '#3F51B5'],
+                        data: Object.values(regionCounts)
+                    }]
+                },
+                options: {
+                    title: {
+                        display: true,
+                        text: "Region Chart"
+                    }
+                }
+            });
+        }
+        function drawLikelihoodChart() {
+            const likelihood = {}
+            jsonData.forEach(item => {
+                if (item.country in likelihood){
+                    if(item.likelihood>likelihood[item.country]){
+                        likelihood[item.country] = item.likelihood
+                    }
+                }
+                else {
+                    likelihood[item.country] = item.likelihood
+                }
+            })
+            new Chart("likelihoodChart", {
+                type: "radar",
+                data: {
+                    labels: Object.keys(likelihood),
+                    datasets: [{
+                        backgroundColor: ['#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4CAF50',
+                            '#FF9800',
+                            '#9C27B0',
+                            '#3F51B5'],
+                        data: Object.values(likelihood) 
+                    }]
+                },
+                options: {
+                    title: {
+                        display: true,
+                        text: "Region Chart"
+                    }
+                }
+            });
+        }
+        function prepareOptions(){
+            const countries = new Set();
+            jsonData.forEach(item=>{
+                countries.add(item.country);
+            })
+            const dropdown = document.getElementById("countryOptions");
+            countries.forEach(country=>{
+                if(country != "") {
+                    const child = document.createElement('option');
+                child.value = country;
+                child.text = country;
+                dropdown.appendChild(child);
+                }
+                
+            })
+        }
+        let countryChart = null;
+        function getchart(){
+            const country = document.getElementById("countryOptions").value;
+            
+            drawCountryChart(country);
+        }
+        function drawCountryChart(country){
+            const myChart = document.getElementById("countryChart") 
+            myChart.value = ""
+            const countryData = jsonData.filter(
+                (entry) => entry.country === country
+            );
+            console.log(countryData)
+            const sectors = {};
+            countryData.forEach((entry) => {
+            if (!sectors[entry.sector]) {
+                sectors[entry.sector] = [];
+            }
+            sectors[entry.sector].push(entry.intensity);
+            });
+
+            const sectorLabels = Object.keys(sectors);
+            let sectorIntensities = sectorLabels.map((sector) => sectors[sector]);
+            sectorIntensities = sectorIntensities.map((item)=>{
+		        let total = 0;
+                item.forEach((num)=>{
+        	        total+=num;
+                })
+                return total/item.length;
+	        });
+            console.log(sectorLabels)
+            console.log(sectorIntensities)
+            if(countryChart!=null){
+                countryChart.destroy();
+                countryChart = new Chart("countryChart", {
+                type: "bar",
+                data: {
+                    labels: sectorLabels,
+                    datasets: [{
+                        backgroundColor: 'blue',
+                        data:sectorIntensities
+                    }]
+                },
+                options: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: "Country Chart"
+                    }
+                }
+            });
+            }
+            else{
+                countryChart = new Chart("countryChart", {
+                type: "bar",
+                data: {
+                    labels: sectorLabels,
+                    datasets: [{
+                        backgroundColor: 'blue',
+                        data:sectorIntensities
+                    }]
+                },
+                options: {
+                    legend: { display: true,
+                    text:"Countries" },
+                    title: {
+                        display: true,
+                        text: "Country Chart"
+                    }
+                }
+            });
+            }
+            
+        }
+
+    </script>
+</body>
+
+</html>
